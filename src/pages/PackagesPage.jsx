@@ -19,16 +19,11 @@ const PackagesPage = () => {
             Choose the package that suits your style
           </p>
           
-          {/* Price Range */}
-          <div className="flex items-center justify-center gap-2.5 md:gap-6 flex-wrap mt-2.5 md:mt-8">
-            <div className="bg-white/10 backdrop-blur-sm px-2.5 py-1 md:px-6 md:py-3 rounded-full">
-              <p className="text-[9px] md:text-sm text-white/80 mb-0 md:mb-1">Starting from</p>
-              <p className="text-sm md:text-2xl font-bold text-white">₹6,000</p>
-            </div>
-            <span className="text-white/60 text-sm md:text-2xl">to</span>
-            <div className="bg-white/10 backdrop-blur-sm px-2.5 py-1 md:px-6 md:py-3 rounded-full">
-              <p className="text-[9px] md:text-sm text-white/80 mb-0 md:mb-1">Up to</p>
-              <p className="text-sm md:text-2xl font-bold text-white">₹12,000</p>
+          {/* Single Package Price */}
+          <div className="flex items-center justify-center mt-2.5 md:mt-8">
+            <div className="bg-white/10 backdrop-blur-sm px-6 py-3 md:px-8 md:py-4 rounded-full">
+              <p className="text-xs md:text-sm text-white/80 mb-1">Package Price</p>
+              <p className="text-2xl md:text-3xl font-bold text-white">₹6,000</p>
             </div>
           </div>
         </div>

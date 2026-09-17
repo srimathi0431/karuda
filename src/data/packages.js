@@ -1,6 +1,6 @@
 // KARUDA PREMIUM FASHION PACKAGES
-// Price Range: ₹6,000 - ₹12,000
-// Each package includes both fashion items (dresses/sarees/ethnic wear) and electronics
+// Price: ₹6,000
+// Package includes both fashion items (dresses/sarees/ethnic wear) and electronics
 // Edit this file to update package information
 
 export const packages = [
@@ -11,32 +11,14 @@ export const packages = [
     originalPrice: null,
     images: [
       "/images/package.png",
-      "/images/image.png",
-      "/images/image1.png"
+      "/images/saree.png",
+      "/images/induction.png"
     ],
     description: "Perfect package combining fashion essentials with electronics. Get started with style and technology.",
     products: [],
     itemCount: 5,
     discount: null,
     badge: "Popular",
-    available: true,
-    includes: "Fashion Items + Electronics"
-  },
-  {
-    id: 2,
-    name: "₹12,000 Package",
-    price: 12000,
-    originalPrice: null,
-    images: [
-      "/images/package.png",
-      "/images/image1.png",
-      "/images/image.png"
-    ],
-    description: "Premium package with curated fashion items and smart gadgets. Perfect blend of fashion and technology.",
-    products: [],
-    itemCount: 5,
-    discount: null,
-    badge: "Premium",
     available: true,
     includes: "Fashion Items + Electronics"
   }

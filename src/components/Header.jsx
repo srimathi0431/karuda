@@ -37,14 +37,6 @@ const Header = () => {
 
   return (
     <header className="bg-white shadow-md sticky top-0 z-50">
-      {/* Top Bar */}
-      <div className="bg-gradient-to-r from-primary-600 via-accent-600 to-pink-600 text-white py-2 animate-gradient-x">
-        <div className="container-custom flex justify-between items-center text-xs md:text-sm">
-          <p className="animate-fadeIn">✨ Free Shipping on Orders Above ₹999</p>
-          <p className="hidden md:block animate-fadeIn">📞 Contact: 9629266357</p>
-        </div>
-      </div>
-
       {/* Main Header */}
       <div className="container-custom py-4">
         <div className="flex items-center justify-between gap-4">

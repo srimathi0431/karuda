@@ -11,7 +11,7 @@ const UserProducts = () => {
       id: 1,
       name: 'Santhana Kinnam',
       category: 'Groceries',
-      price: 12000,
+      price: 6000,
       stock: 50,
       image: '/images/products/santhana-kinnam.jpg',
       description: 'Premium quality Santhana Kinnam',

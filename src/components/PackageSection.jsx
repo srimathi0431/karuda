@@ -22,19 +22,12 @@ const PackageSection = () => {
             Explore our carefully curated KARUDA packages, designed for customers looking for a complete fashion selection at an attractive package price.
           </p>
           
-          {/* Price Range */}
-          <div className="flex items-center justify-center gap-4 flex-wrap">
+          {/* Price */}
+          <div className="flex items-center justify-center">
             <div className="text-center">
-              <p className="text-sm text-gray-500 mb-1">Packages starting from</p>
-              <p className="text-3xl font-bold bg-gradient-to-r from-rose-600 to-pink-600 bg-clip-text text-transparent">
+              <p className="text-sm text-gray-500 mb-1">Package Price</p>
+              <p className="text-4xl font-bold bg-gradient-to-r from-rose-600 to-pink-600 bg-clip-text text-transparent">
                 ₹6,000
-              </p>
-            </div>
-            <span className="text-gray-400 text-2xl">—</span>
-            <div className="text-center">
-              <p className="text-sm text-gray-500 mb-1">Up to</p>
-              <p className="text-3xl font-bold bg-gradient-to-r from-rose-600 to-pink-600 bg-clip-text text-transparent">
-                ₹26,000
               </p>
             </div>
           </div>

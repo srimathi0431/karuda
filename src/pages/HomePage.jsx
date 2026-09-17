@@ -26,7 +26,7 @@ export default function HomePage() {
       title: 'KARUDA Packages',
       subtitle: 'PACKAGES',
       description: 'Complete packages combining fashion, lifestyle essentials and more. Two perfect packages to choose from.',
-      priceRange: '₹6,000 – ₹12,000',
+      priceRange: '₹6,000',
       categories: 'Saree • Induction Stove • Santhana Kinnam • LIC • Maligai Porulgal',
       type: 'package'
     },

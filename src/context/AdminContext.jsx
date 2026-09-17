@@ -53,7 +53,7 @@ export const AdminProvider = ({ children }) => {
     // Default mock data
     const statuses = ['Processing', 'Shipped', 'Delivered', 'Cancelled'];
     const paymentStatuses = ['Paid', 'Pending', 'Failed'];
-    const products = ['Saree', 'Induction Stove', 'Santhana Kinnam', 'Maligai Porulgal', '₹6,000 Package', '₹12,000 Package'];
+    const products = ['Saree', 'Induction Stove', 'Santhana Kinnam', 'Maligai Porulgal', '₹6,000 Package'];
     
     return Array.from({ length: 38 }, (_, i) => ({
       id: 1000 + i,
