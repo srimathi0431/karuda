@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { adminAPI } from '../services/api';
 
 const AdminContext = createContext();
 
@@ -7,10 +8,6 @@ export const useAdmin = () => {
   if (!context) throw new Error('useAdmin must be used within AdminProvider');
   return context;
 };
-
-// Admin credentials
-const ADMIN_EMAIL = 'karuda@gmail.com';
-const ADMIN_PASSWORD = '12345678';
 
 export const AdminProvider = ({ children }) => {
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => {
