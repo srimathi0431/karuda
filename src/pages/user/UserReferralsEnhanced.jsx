@@ -3,198 +3,61 @@ import UserPanelLayout from '../../components/user/UserPanelLayout';
 import { useUserPanel } from '../../context/UserPanelContext';
 import { useAuth } from '../../context/AuthContext';
 import UserPagination from '../../components/user/UserPagination';
-import { referralAPI } from '../../services/api';
-import { useNavigate } from 'react-router-dom';
 import { 
   FaSearch, FaCopy, FaCheck, FaWhatsapp, FaEnvelope, FaQrcode, 
   FaLightbulb, FaChartLine, FaUser, FaTrophy, FaClock, FaArrowUp,
-  FaFacebook, FaTwitter, FaLinkedin, FaFilePdf, FaVideo
+  FaFacebook, FaTwitter, FaLinkedin, FaFileP, FaVideo
 } from 'react-icons/fa';
 import '../../styles/UserReferrals.css';
 
-const UserReferrals = () => {
+const UserReferralsEnhanced = () => {
   const { referrals = [], loading } = useUserPanel() || {};
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [copiedLink, setCopiedLink] = useState('');
-  const [treeStrength, setTreeStrength] = useState(null);
-  const [loadingStrength, setLoadingStrength] = useState(true);
   const rowsPerPage = 10;
+
+  // Mock data for tree strength (will come from API)
+  const [treeStrength] = useState({
+    leftStrength: 45,
+    rightStrength: 55,
+    leftCount: 12,
+    rightCount: 15,
+    leftVolume: 240000,
+    rightVolume: 310000,
+    weakerLeg: 'left',
+    balancePercentage: 82
+  });
 
   // Generate referral links
   const baseUrl = 'https://srikaruda.shop';
   const leftReferralLink = `${baseUrl}/${user?.username || 'karuda'}/left`;
   const rightReferralLink = `${baseUrl}/${user?.username || 'karuda'}/right`;
 
-  // Fetch tree strength on mount
-  useEffect(() => {
-    const fetchTreeStrength = async () => {
-      if (!user?.username) return;
-      
-      try {
-        setLoadingStrength(true);
-        const response = await referralAPI.getTreeStrength(user.username);
-        if (response.success && response.tree_strength) {
-          const strength = response.tree_strength;
-          setTreeStrength({
-            leftStrength: Math.round((strength.left_leg_count / Math.max(strength.total_team, 1)) * 100),
-            rightStrength: Math.round((strength.right_leg_count / Math.max(strength.total_team, 1)) * 100),
-            leftCount: strength.left_leg_count || 0,
-            rightCount: strength.right_leg_count || 0,
-            leftVolume: strength.left_leg_volume || 0,
-            rightVolume: strength.right_leg_volume || 0,
-            weakerLeg: strength.weaker_leg,
-            balancePercentage: strength.balance_percentage || 0,
-            totalTeam: strength.total_team || 0
-          });
-        }
-      } catch (error) {
-        console.error('Failed to fetch tree strength:', error);
-        // Use default mock data if API fails
-        setTreeStrength({
-          leftStrength: 45,
-          rightStrength: 55,
-          leftCount: 12,
-          rightCount: 15,
-          leftVolume: 240000,
-          rightVolume: 310000,
-          weakerLeg: 'left',
-          balancePercentage: 82,
-          totalTeam: 27
-        });
-      } finally {
-        setLoadingStrength(false);
-      }
-    };
-
-    fetchTreeStrength();
-  }, [user?.username]);
-
-  // Stats data - use real referral data
+  // Stats data
   const stats = {
-    totalReferrals: referrals.length || 0,
-    activeMembers: referrals.filter(r => r.status === 'Active').length || 0,
-    pendingApprovals: referrals.filter(r => r.status === 'Pending').length || 0,
-    weeklyEarnings: user?.wallet_balance || 0
+    totalReferrals: referrals.length || 27,
+    activeMembers: referrals.filter(r => r.status === 'Active').length || 24,
+    pendingApprovals: 3,
+    weeklyEarnings: 45000
   };
 
-  const handleCopyLink = async (link, position) => {
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopiedLink(position);
-      setTimeout(() => setCopiedLink(''), 2000);
-      
-      // Log share activity
-      if (user?.username) {
-        await referralAPI.logShare(user.username, 'copy', position);
-      }
-    } catch (error) {
-      console.error('Failed to copy link:', error);
-    }
+  const handleCopyLink = (link, position) => {
+    navigator.clipboard.writeText(link);
+    setCopiedLink(position);
+    setTimeout(() => setCopiedLink(''), 2000);
   };
 
-  const handleWhatsAppShare = async (link, position) => {
+  const handleWhatsAppShare = (link, position) => {
     const message = `Join my team at Karuda! Use my ${position} leg referral link: ${link}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
-    
-    // Log share activity
-    if (user?.username) {
-      await referralAPI.logShare(user.username, 'whatsapp', position.toLowerCase(), {
-        share_platform: 'whatsapp'
-      });
-    }
   };
 
-  const handleEmailShare = async (link, position) => {
+  const handleEmailShare = (link, position) => {
     const subject = 'Join My Karuda Network';
     const body = `Hi,\n\nI'd like to invite you to join my Karuda network through my ${position} leg.\n\nUse this link to sign up: ${link}\n\nLooking forward to working together!`;
     window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    
-    // Log share activity
-    if (user?.username) {
-      await referralAPI.logShare(user.username, 'email', position.toLowerCase(), {
-        share_platform: 'email'
-      });
-    }
-  };
-
-  const handleQRCode = (link, position) => {
-    // Generate QR code URL using QR Server API
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(link)}`;
-    
-    // Open QR code in new window
-    const qrWindow = window.open('', '_blank', 'width=400,height=500');
-    qrWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>QR Code - ${position} Leg</title>
-        <style>
-          body { 
-            font-family: Arial, sans-serif; 
-            text-align: center; 
-            padding: 20px;
-            background: #f9fafb;
-          }
-          .qr-container {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            display: inline-block;
-            margin-top: 20px;
-          }
-          h2 { color: #667eea; margin-bottom: 10px; }
-          p { color: #6b7280; margin: 10px 0; }
-          img { margin: 20px 0; border: 2px solid #e5e7eb; border-radius: 8px; }
-          .link { 
-            background: #f3f4f6; 
-            padding: 10px; 
-            border-radius: 6px; 
-            font-family: monospace;
-            font-size: 12px;
-            word-break: break-all;
-            margin: 10px 0;
-          }
-          button {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            margin-top: 10px;
-          }
-          button:hover { background: #5568d3; }
-        </style>
-      </head>
-      <body>
-        <div class="qr-container">
-          <h2>📲 ${position.toUpperCase()} Leg Referral QR Code</h2>
-          <p>Scan to join Karuda Network</p>
-          <img src="${qrUrl}" alt="QR Code" />
-          <div class="link">${link}</div>
-          <button onclick="window.print()">🖨️ Print QR Code</button>
-        </div>
-      </body>
-      </html>
-    `);
-    qrWindow.document.close();
-    
-    // Log share activity
-    if (user?.username) {
-      referralAPI.logShare(user.username, 'qr_code', position.toLowerCase(), {
-        share_platform: 'qr_code'
-      });
-    }
-  };
-
-  const handleViewFullTree = () => {
-    // Navigate to full tree page
-    navigate(`/account/team-tree`);
   };
 
   const filteredReferrals = referrals.filter(
@@ -208,7 +71,7 @@ const UserReferrals = () => {
   const startIndex = (currentPage - 1) * rowsPerPage;
   const currentReferrals = filteredReferrals.slice(startIndex, startIndex + rowsPerPage);
 
-  if (loading || loadingStrength) {
+  if (loading) {
     return (
       <UserPanelLayout>
         <div className="referral-hero">
@@ -217,18 +80,6 @@ const UserReferrals = () => {
       </UserPanelLayout>
     );
   }
-
-  const displayTreeStrength = treeStrength || {
-    leftStrength: 0,
-    rightStrength: 0,
-    leftCount: 0,
-    rightCount: 0,
-    leftVolume: 0,
-    rightVolume: 0,
-    weakerLeg: 'left',
-    balancePercentage: 0,
-    totalTeam: 0
-  };
 
   return (
     <UserPanelLayout>
@@ -259,15 +110,15 @@ const UserReferrals = () => {
               </div>
               <div className="link-stats">
                 <div className="link-stat">
-                  <p className="link-stat-value" style={{ color: '#10b981' }}>{displayTreeStrength.leftStrength}%</p>
+                  <p className="link-stat-value" style={{ color: '#10b981' }}>{treeStrength.leftStrength}%</p>
                   <p className="link-stat-label">Strength</p>
                 </div>
                 <div className="link-stat">
-                  <p className="link-stat-value">{displayTreeStrength.leftCount}</p>
+                  <p className="link-stat-value">{treeStrength.leftCount}</p>
                   <p className="link-stat-label">Members</p>
                 </div>
                 <div className="link-stat">
-                  <p className="link-stat-value">₹{(displayTreeStrength.leftVolume / 100000).toFixed(1)}L</p>
+                  <p className="link-stat-value">₹{(treeStrength.leftVolume / 100000).toFixed(1)}L</p>
                   <p className="link-stat-label">Volume</p>
                 </div>
               </div>
@@ -288,7 +139,7 @@ const UserReferrals = () => {
                 <button className="btn-share email" onClick={() => handleEmailShare(leftReferralLink, 'LEFT')}>
                   <FaEnvelope /> Email
                 </button>
-                <button className="btn-share" onClick={() => handleQRCode(leftReferralLink, 'LEFT')}>
+                <button className="btn-share">
                   <FaQrcode /> QR Code
                 </button>
               </div>
@@ -301,15 +152,15 @@ const UserReferrals = () => {
               </div>
               <div className="link-stats">
                 <div className="link-stat">
-                  <p className="link-stat-value" style={{ color: '#3b82f6' }}>{displayTreeStrength.rightStrength}%</p>
+                  <p className="link-stat-value" style={{ color: '#3b82f6' }}>{treeStrength.rightStrength}%</p>
                   <p className="link-stat-label">Strength</p>
                 </div>
                 <div className="link-stat">
-                  <p className="link-stat-value">{displayTreeStrength.rightCount}</p>
+                  <p className="link-stat-value">{treeStrength.rightCount}</p>
                   <p className="link-stat-label">Members</p>
                 </div>
                 <div className="link-stat">
-                  <p className="link-stat-value">₹{(displayTreeStrength.rightVolume / 100000).toFixed(1)}L</p>
+                  <p className="link-stat-value">₹{(treeStrength.rightVolume / 100000).toFixed(1)}L</p>
                   <p className="link-stat-label">Volume</p>
                 </div>
               </div>
@@ -330,7 +181,7 @@ const UserReferrals = () => {
                 <button className="btn-share email" onClick={() => handleEmailShare(rightReferralLink, 'RIGHT')}>
                   <FaEnvelope /> Email
                 </button>
-                <button className="btn-share" onClick={() => handleQRCode(rightReferralLink, 'RIGHT')}>
+                <button className="btn-share">
                   <FaQrcode /> QR Code
                 </button>
               </div>
@@ -338,12 +189,12 @@ const UserReferrals = () => {
           </div>
 
           {/* Smart Suggestion */}
-          {displayTreeStrength.weakerLeg && displayTreeStrength.totalTeam > 0 && (
+          {treeStrength.weakerLeg && (
             <div className="balance-suggestion">
               <span className="balance-suggestion-icon">💡</span>
               <div className="balance-suggestion-text">
                 <p>Smart Suggestion: Balance your tree!</p>
-                <small>Add {Math.abs(displayTreeStrength.leftCount - displayTreeStrength.rightCount)} more members to {displayTreeStrength.weakerLeg.toUpperCase()} leg for bonus</small>
+                <small>Add 3 more members to {treeStrength.weakerLeg.toUpperCase()} leg for bonus</small>
               </div>
             </div>
           )}
@@ -354,18 +205,30 @@ const UserReferrals = () => {
           <div className="performance-card">
             <p className="performance-card-label">Total Referrals</p>
             <p className="performance-card-value primary">{stats.totalReferrals}</p>
+            <p className="performance-card-change positive">
+              <FaArrowUp /> +3 this week
+            </p>
           </div>
           <div className="performance-card">
             <p className="performance-card-label">Active Members</p>
             <p className="performance-card-value success">{stats.activeMembers}</p>
+            <p className="performance-card-change positive">
+              <FaArrowUp /> +2 this week
+            </p>
           </div>
           <div className="performance-card">
             <p className="performance-card-label">Pending Approvals</p>
             <p className="performance-card-value" style={{ color: '#f59e0b' }}>{stats.pendingApprovals}</p>
+            <p className="performance-card-change positive">
+              <FaArrowUp /> +1 today
+            </p>
           </div>
           <div className="performance-card">
-            <p className="performance-card-label">Wallet Balance</p>
-            <p className="performance-card-value info">₹{stats.weeklyEarnings.toFixed(2)}</p>
+            <p className="performance-card-label">Earnings This Week</p>
+            <p className="performance-card-value info">₹{(stats.weeklyEarnings / 1000).toFixed(0)}K</p>
+            <p className="performance-card-change positive">
+              <FaArrowUp /> +12%
+            </p>
           </div>
         </div>
 
@@ -374,34 +237,58 @@ const UserReferrals = () => {
           <h3>🌳 Your Binary Tree</h3>
           <div className="tree-container">
             <div className="tree-node">
-              <h4>{user?.name || 'Karuda'}</h4>
-              <p>@{user?.username || 'karuda'}</p>
-              <p style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>
-                Volume: ₹{((displayTreeStrength.leftVolume + displayTreeStrength.rightVolume) / 100000).toFixed(2)}L
-              </p>
+              <h4>YOU - {user?.name || 'Karuda'}</h4>
+              <p>Level 0 | Diamond</p>
             </div>
             <div className="tree-children">
               <div className="tree-child left">
-                <h5>⬅️ LEFT LEG</h5>
-                <p><strong>{displayTreeStrength.leftCount}</strong> members</p>
-                <p style={{ color: '#10b981', fontWeight: 600, fontSize: '0.875rem' }}>
-                  ₹{(displayTreeStrength.leftVolume / 100000).toFixed(2)}L volume
-                </p>
+                <h5>⬅️ LEFT</h5>
+                <p>{treeStrength.leftCount} members</p>
+                <p style={{ color: '#10b981', fontWeight: 600 }}>₹{(treeStrength.leftVolume / 100000).toFixed(1)}L volume</p>
               </div>
               <div className="tree-child right">
-                <h5>➡️ RIGHT LEG</h5>
-                <p><strong>{displayTreeStrength.rightCount}</strong> members</p>
-                <p style={{ color: '#3b82f6', fontWeight: 600, fontSize: '0.875rem' }}>
-                  ₹{(displayTreeStrength.rightVolume / 100000).toFixed(2)}L volume
-                </p>
+                <h5>➡️ RIGHT</h5>
+                <p>{treeStrength.rightCount} members</p>
+                <p style={{ color: '#3b82f6', fontWeight: 600 }}>₹{(treeStrength.rightVolume / 100000).toFixed(1)}L volume</p>
               </div>
             </div>
             <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button className="btn-share" onClick={handleViewFullTree}>
+              <button className="btn-share">
                 <FaChartLine /> View Full Tree
+              </button>
+              <button className="btn-share">
+                📊 Analytics
               </button>
             </div>
           </div>
+        </div>
+
+        {/* 7. SMART SHARE OPTIONS */}
+        <div className="referral-links-section">
+          <h3>🚀 Quick Share Tools</h3>
+          <div className="share-buttons" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+            <button className="btn-share">
+              <FaWhatsapp /> WhatsApp Blast
+            </button>
+            <button className="btn-share">
+              <FaEnvelope /> Email Campaign
+            </button>
+            <button className="btn-share">
+              📲 SMS Campaign
+            </button>
+            <button className="btn-share">
+              <FaFacebook /> Social Media
+            </button>
+            <button className="btn-share">
+              <FaFileP /> Generate PDF
+            </button>
+            <button className="btn-share">
+              <FaVideo /> Video Link
+            </button>
+          </div>
+          <p style={{ marginTop: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
+            💬 Pre-written messages available!
+          </p>
         </div>
 
         {/* 5. RECENT REFERRALS TABLE */}
@@ -479,39 +366,33 @@ const UserReferrals = () => {
             <h4 style={{ margin: '0 0 1rem 0', fontSize: '1rem', color: '#333' }}>🎯 Referral Milestones:</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <span style={{ fontSize: '1.25rem' }}>{stats.totalReferrals >= 10 ? '✅' : '🔒'}</span>
-                <span>10 Referrals {stats.totalReferrals >= 10 ? '- Unlocked' : `- ${stats.totalReferrals}/10`}</span>
+                <span style={{ fontSize: '1.25rem' }}>✅</span>
+                <span>10 Referrals - Unlocked</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <span style={{ fontSize: '1.25rem' }}>{stats.totalReferrals >= 25 ? '✅' : '🔒'}</span>
-                <span>25 Referrals {stats.totalReferrals >= 25 ? '- Unlocked' : `- ${stats.totalReferrals}/25`}</span>
+                <span style={{ fontSize: '1.25rem' }}>✅</span>
+                <span>25 Referrals - Unlocked</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <span style={{ fontSize: '1.25rem' }}>{stats.totalReferrals >= 50 ? '✅' : '🔒'}</span>
-                <span>50 Referrals - {stats.totalReferrals}/50 {stats.totalReferrals < 50 && '(Next: ₹10K bonus)'}</span>
+                <span style={{ fontSize: '1.25rem' }}>🔒</span>
+                <span>50 Referrals - {stats.totalReferrals}/50 (Next: ₹10K bonus)</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <span style={{ fontSize: '1.25rem' }}>{stats.totalReferrals >= 100 ? '✅' : '🔒'}</span>
+                <span style={{ fontSize: '1.25rem' }}>🔒</span>
                 <span>100 Referrals - {stats.totalReferrals}/100</span>
               </div>
             </div>
             
             <div style={{ marginTop: '2rem', padding: '1.5rem', background: '#f9fafb', borderRadius: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                <span style={{ fontWeight: 600 }}>🎖️ Team Growth</span>
-                <span style={{ color: '#6b7280' }}>{Math.min(100, Math.round((stats.totalReferrals / 100) * 100))}%</span>
+                <span style={{ fontWeight: 600 }}>🎖️ Current Rank: Diamond</span>
+                <span style={{ color: '#6b7280' }}>46%</span>
               </div>
               <div style={{ background: '#e5e7eb', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ 
-                  background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)', 
-                  width: `${Math.min(100, Math.round((stats.totalReferrals / 100) * 100))}%`, 
-                  height: '100%' 
-                }}></div>
+                <div style={{ background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)', width: '46%', height: '100%' }}></div>
               </div>
               <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.875rem', color: '#6b7280' }}>
-                {stats.totalReferrals < 100 
-                  ? `Next Milestone: ${stats.totalReferrals < 10 ? '10' : stats.totalReferrals < 25 ? '25' : stats.totalReferrals < 50 ? '50' : '100'} referrals` 
-                  : 'All milestones completed! 🎉'}
+                Next Rank: Platinum (Need 23 more members)
               </p>
             </div>
           </div>
@@ -521,4 +402,4 @@ const UserReferrals = () => {
   );
 };
 
-export default UserReferrals;
+export default UserReferralsEnhanced;

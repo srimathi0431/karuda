@@ -1,303 +1,751 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import UserPanelLayout from '../../components/user/UserPanelLayout';
-import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaEdit, FaSave, FaTimes } from 'react-icons/fa';
+import { useAuth } from '../../context/AuthContext';
+import { userAPI } from '../../services/api';
+import { 
+  FaUser, FaCamera, FaUpload, FaTrash, FaEdit, FaSave, 
+  FaTimes, FaLock, FaEye, FaEyeSlash 
+} from 'react-icons/fa';
+import '../../styles/UserProfile.css';
 
 const UserProfile = () => {
+  const { user, updateUser } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    name: 'John Doe',
-    email: 'john.doe@example.com',
-    phone: '+91 9876543210',
-    address: '123 Main Street, Chennai, Tamil Nadu',
-    city: 'Chennai',
-    state: 'Tamil Nadu',
-    pincode: '600001',
-    dateOfBirth: '1990-01-15',
-    gender: 'Male',
+  
+  // Profile data
+  const [profileData, setProfileData] = useState({
+    name: '',
+    email: '',
+    mobile: '',
+    profile_photo: null,
+    date_of_birth: '',
+    gender: '',
+    city: '',
+    state: '',
+    pincode: '',
+    address: ''
   });
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+  const [originalData, setOriginalData] = useState({});
+  
+  // Photo states
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [showCamera, setShowCamera] = useState(false);
+  const [stream, setStream] = useState(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  // Password states
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    old_password: '',
+    new_password: '',
+    confirm_password: ''
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    old: false,
+    new: false,
+    confirm: false
+  });
+
+  // Confirmation modal
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmationType, setConfirmationType] = useState('');
+  const [confirmationData, setConfirmationData] = useState(null);
+
+  // Messages
+  const [message, setMessage] = useState({ type: '', text: '' });
+
+  // Load user profile
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user?.username) return;
+      
+      try {
+        setLoading(true);
+        const response = await userAPI.getProfile(user.username);
+        if (response.success && response.user) {
+          const userData = response.user;
+          setProfileData({
+            name: userData.name || '',
+            email: userData.email || '',
+            mobile: userData.mobile || '',
+            profile_photo: userData.profile_photo || null,
+            date_of_birth: userData.date_of_birth || '',
+            gender: userData.gender || '',
+            city: userData.city || '',
+            state: userData.state || '',
+            pincode: userData.pincode || '',
+            address: userData.address || ''
+          });
+          setOriginalData({ ...userData });
+          setPhotoPreview(userData.profile_photo);
+        }
+      } catch (error) {
+        showMessage('error', 'Failed to load profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [user?.username]);
+
+  const showMessage = (type, text) => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage({ type: '', text: '' }), 5000);
   };
 
-  const handleSave = (e) => {
-    e.preventDefault();
-    // In production, save to backend via API
-    console.log('Saving profile:', formData);
-    setIsEditing(false);
-    // Show success message
-    alert('Profile updated successfully!');
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setProfileData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Photo upload from file
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setConfirmationType('error');
+      setConfirmationData({
+        title: 'Invalid File Type',
+        message: 'Please upload an image file (JPG, PNG, or WEBP).'
+      });
+      setShowConfirmModal(true);
+      return;
+    }
+
+    // Validate file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      setConfirmationType('error');
+      setConfirmationData({
+        title: 'Photo Too Large',
+        message: `File size: ${(file.size / 1024 / 1024).toFixed(2)} MB. Maximum: 10 MB.`
+      });
+      setShowConfirmModal(true);
+      return;
+    }
+
+    // Convert to base64
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setConfirmationType('photo-upload');
+      setConfirmationData({
+        photo: reader.result,
+        fileName: file.name,
+        fileSize: (file.size / 1024 / 1024).toFixed(2)
+      });
+      setShowConfirmModal(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Start camera
+  const startCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'user' } 
+      });
+      setStream(mediaStream);
+      setShowCamera(true);
+      
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+        }
+      }, 100);
+    } catch (error) {
+      setConfirmationType('error');
+      setConfirmationData({
+        title: 'Camera Access Required',
+        message: 'Please enable camera access in your browser settings.'
+      });
+      setShowConfirmModal(true);
+    }
+  };
+
+  // Capture photo from camera
+  const capturePhoto = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+    
+    const photoData = canvas.toDataURL('image/jpeg', 0.8);
+    stopCamera();
+    
+    setConfirmationType('photo-capture');
+    setConfirmationData({ photo: photoData });
+    setShowConfirmModal(true);
+  };
+
+  // Stop camera
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setShowCamera(false);
+  };
+
+  // Remove photo
+  const handleRemovePhoto = () => {
+    setConfirmationType('photo-remove');
+    setConfirmationData({});
+    setShowConfirmModal(true);
+  };
+
+  // Handle confirmation actions
+  const handleConfirm = () => {
+    if (confirmationType === 'photo-upload' || confirmationType === 'photo-capture') {
+      setPhotoPreview(confirmationData.photo);
+      setProfileData(prev => ({ ...prev, profile_photo: confirmationData.photo }));
+    } else if (confirmationType === 'photo-remove') {
+      setPhotoPreview(null);
+      setProfileData(prev => ({ ...prev, profile_photo: null }));
+    } else if (confirmationType === 'profile-update') {
+      saveProfile();
+    } else if (confirmationType === 'password-change') {
+      changePassword();
+    } else if (confirmationType === 'discard-changes') {
+      setProfileData(originalData);
+      setPhotoPreview(originalData.profile_photo);
+      setIsEditing(false);
+    }
+    setShowConfirmModal(false);
+    setConfirmationData(null);
+  };
+
+  // Update profile
+  const handleUpdateProfile = () => {
+    // Get changes
+    const changes = [];
+    if (profileData.name !== originalData.name) changes.push(`Name: ${originalData.name} → ${profileData.name}`);
+    if (profileData.city !== originalData.city) changes.push(`City: ${originalData.city || 'Not set'} → ${profileData.city}`);
+    if (profileData.state !== originalData.state) changes.push(`State: ${originalData.state || 'Not set'} → ${profileData.state}`);
+    if (profileData.address !== originalData.address) changes.push('Address: Updated');
+    if (profileData.date_of_birth !== originalData.date_of_birth) changes.push('Date of Birth: Updated');
+    if (profileData.gender !== originalData.gender) changes.push('Gender: Updated');
+    if (profileData.pincode !== originalData.pincode) changes.push('Pincode: Updated');
+    if (profileData.profile_photo !== originalData.profile_photo) changes.push('Profile Photo: Updated');
+
+    if (changes.length === 0) {
+      showMessage('info', 'No changes to save');
+      return;
+    }
+
+    setConfirmationType('profile-update');
+    setConfirmationData({ changes });
+    setShowConfirmModal(true);
+  };
+
+  const saveProfile = async () => {
+    try {
+      setSaving(true);
+      const response = await userAPI.updateProfile(user.username, profileData);
+      
+      if (response.success) {
+        setOriginalData({ ...profileData });
+        updateUser(response.user);
+        setIsEditing(false);
+        showMessage('success', 'Profile updated successfully!');
+      } else {
+        showMessage('error', response.message || 'Update failed');
+      }
+    } catch (error) {
+      showMessage('error', error.message || 'Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Change password
+  const handleChangePassword = () => {
+    if (!passwordData.old_password || !passwordData.new_password || !passwordData.confirm_password) {
+      showMessage('error', 'Please fill all password fields');
+      return;
+    }
+
+    if (passwordData.new_password !== passwordData.confirm_password) {
+      showMessage('error', 'New passwords do not match');
+      return;
+    }
+
+    if (passwordData.new_password.length < 6) {
+      showMessage('error', 'Password must be at least 6 characters');
+      return;
+    }
+
+    setConfirmationType('password-change');
+    setConfirmationData({});
+    setShowConfirmModal(true);
+  };
+
+  const changePassword = async () => {
+    try {
+      setSaving(true);
+      const response = await userAPI.changePassword(
+        user.username,
+        passwordData.old_password,
+        passwordData.new_password
+      );
+      
+      if (response.success) {
+        setPasswordData({ old_password: '', new_password: '', confirm_password: '' });
+        setShowPasswordModal(false);
+        showMessage('success', 'Password changed successfully!');
+      } else {
+        showMessage('error', response.message || 'Password change failed');
+      }
+    } catch (error) {
+      showMessage('error', error.message || 'Failed to change password');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Cancel edit
   const handleCancel = () => {
-    // Reset form data to original values
-    setFormData({
-      name: 'John Doe',
-      email: 'john.doe@example.com',
-      phone: '+91 9876543210',
-      address: '123 Main Street, Chennai, Tamil Nadu',
-      city: 'Chennai',
-      state: 'Tamil Nadu',
-      pincode: '600001',
-      dateOfBirth: '1990-01-15',
-      gender: 'Male',
-    });
-    setIsEditing(false);
+    const hasChanges = JSON.stringify(profileData) !== JSON.stringify(originalData);
+    
+    if (hasChanges) {
+      setConfirmationType('discard-changes');
+      const changes = [];
+      if (profileData.name !== originalData.name) changes.push('Name');
+      if (profileData.city !== originalData.city) changes.push('City');
+      if (profileData.profile_photo !== originalData.profile_photo) changes.push('Photo');
+      setConfirmationData({ changes });
+      setShowConfirmModal(true);
+    } else {
+      setIsEditing(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <UserPanelLayout>
+        <div className="profile-loading">
+          <div className="loading-spinner"></div>
+          <p>Loading profile...</p>
+        </div>
+      </UserPanelLayout>
+    );
+  }
 
   return (
     <UserPanelLayout>
-      <div className="space-y-6">
+      <div className="profile-container">
+        {/* Message Toast */}
+        {message.text && (
+          <div className={`message-toast ${message.type}`}>
+            {message.text}
+          </div>
+        )}
+
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">My Profile</h1>
-              <p className="text-gray-600 mt-1">Manage your personal information</p>
-            </div>
-            {!isEditing ? (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="px-6 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors flex items-center gap-2"
-              >
-                <FaEdit /> Edit Profile
+        <div className="profile-header">
+          <div>
+            <h1 className="profile-title">My Profile</h1>
+            <p className="profile-subtitle">Manage your personal information</p>
+          </div>
+          {!isEditing ? (
+            <button onClick={() => setIsEditing(true)} className="btn-edit">
+              <FaEdit /> Edit Profile
+            </button>
+          ) : (
+            <div className="btn-group">
+              <button onClick={handleCancel} className="btn-cancel">
+                <FaTimes /> Cancel
               </button>
+              <button onClick={handleUpdateProfile} className="btn-save" disabled={saving}>
+                {saving ? 'Saving...' : <><FaSave /> Save</>}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Photo Section */}
+        <div className="photo-section">
+          <div className="photo-wrapper">
+            {photoPreview ? (
+              <img src={photoPreview} alt="Profile" className="profile-photo" />
             ) : (
-              <div className="flex gap-2">
-                <button
-                  onClick={handleCancel}
-                  className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors flex items-center gap-2"
-                >
-                  <FaTimes /> Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"
-                >
-                  <FaSave /> Save
-                </button>
+              <div className="profile-avatar">
+                {profileData.name ? profileData.name.charAt(0).toUpperCase() : <FaUser />}
               </div>
             )}
           </div>
-        </div>
-
-        {/* Profile Card */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          {/* Profile Header */}
-          <div className="bg-gradient-to-r from-pink-500 to-purple-600 h-32"></div>
-          <div className="px-6 pb-6">
-            <div className="flex flex-col md:flex-row md:items-end gap-6">
-              {/* Profile Picture */}
-              <div className="-mt-16 relative">
-                <div className="w-32 h-32 rounded-full border-4 border-white bg-gray-200 flex items-center justify-center text-4xl text-gray-600 overflow-hidden shadow-lg">
-                  <FaUser />
-                </div>
-                {isEditing && (
-                  <button className="absolute bottom-0 right-0 w-10 h-10 bg-pink-500 text-white rounded-full flex items-center justify-center hover:bg-pink-600 transition-colors shadow-md">
-                    <FaEdit />
-                  </button>
-                )}
-              </div>
-
-              {/* User Info */}
-              <div className="flex-1 mt-4">
-                <h2 className="text-2xl font-bold text-gray-800">{formData.name}</h2>
-                <p className="text-gray-600">{formData.email}</p>
-                <div className="flex flex-wrap gap-4 mt-2 text-sm text-gray-600">
-                  <span className="flex items-center gap-1">
-                    <FaPhone className="text-pink-500" /> {formData.phone}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <FaMapMarkerAlt className="text-pink-500" /> {formData.city}, {formData.state}
-                  </span>
-                </div>
-              </div>
+          
+          {isEditing && (
+            <div className="photo-actions">
+              <button onClick={() => fileInputRef.current?.click()} className="btn-photo">
+                <FaUpload /> Upload
+              </button>
+              <button onClick={startCamera} className="btn-photo">
+                <FaCamera /> Camera
+              </button>
+              {photoPreview && (
+                <button onClick={handleRemovePhoto} className="btn-photo danger">
+                  <FaTrash /> Remove
+                </button>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileUpload}
+                style={{ display: 'none' }}
+              />
             </div>
+          )}
+          
+          <div className="photo-info">
+            <h2>{profileData.name || 'User'}</h2>
+            <p>{profileData.email}</p>
           </div>
         </div>
 
         {/* Profile Form */}
-        <form onSubmit={handleSave} className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-xl font-bold text-gray-800 mb-6">Personal Information</h3>
+        <div className="profile-form">
+          <h3 className="form-title">Personal Information</h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Full Name */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name <span className="text-red-500">*</span>
-              </label>
+          <div className="form-grid">
+            <div className="form-field">
+              <label>Full Name <span className="required">*</span></label>
               <input
                 type="text"
                 name="name"
-                value={formData.name}
-                onChange={handleChange}
+                value={profileData.name}
+                onChange={handleInputChange}
                 disabled={!isEditing}
                 required
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 ${
-                  !isEditing ? 'bg-gray-50 text-gray-600' : ''
-                }`}
               />
             </div>
 
-            {/* Email */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address <span className="text-red-500">*</span>
-              </label>
+            <div className="form-field">
+              <label>Email Address <span className="required">*</span></label>
               <input
                 type="email"
                 name="email"
-                value={formData.email}
-                onChange={handleChange}
-                disabled={!isEditing}
-                required
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 ${
-                  !isEditing ? 'bg-gray-50 text-gray-600' : ''
-                }`}
+                value={profileData.email}
+                disabled
+                title="Email cannot be changed"
               />
             </div>
 
-            {/* Phone */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Phone Number <span className="text-red-500">*</span>
-              </label>
+            <div className="form-field">
+              <label>Phone Number <span className="required">*</span></label>
               <input
                 type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                disabled={!isEditing}
-                required
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 ${
-                  !isEditing ? 'bg-gray-50 text-gray-600' : ''
-                }`}
+                name="mobile"
+                value={profileData.mobile}
+                disabled
+                title="Phone cannot be changed"
               />
             </div>
 
-            {/* Date of Birth */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Date of Birth
-              </label>
+            <div className="form-field">
+              <label>Date of Birth</label>
               <input
                 type="date"
-                name="dateOfBirth"
-                value={formData.dateOfBirth}
-                onChange={handleChange}
+                name="date_of_birth"
+                value={profileData.date_of_birth}
+                onChange={handleInputChange}
                 disabled={!isEditing}
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 ${
-                  !isEditing ? 'bg-gray-50 text-gray-600' : ''
-                }`}
               />
             </div>
 
-            {/* Gender */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Gender
-              </label>
+            <div className="form-field">
+              <label>Gender</label>
               <select
                 name="gender"
-                value={formData.gender}
-                onChange={handleChange}
+                value={profileData.gender}
+                onChange={handleInputChange}
                 disabled={!isEditing}
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 ${
-                  !isEditing ? 'bg-gray-50 text-gray-600' : ''
-                }`}
               >
+                <option value="">Select Gender</option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
                 <option value="Other">Other</option>
               </select>
             </div>
 
-            {/* City */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                City <span className="text-red-500">*</span>
-              </label>
+            <div className="form-field">
+              <label>City <span className="required">*</span></label>
               <input
                 type="text"
                 name="city"
-                value={formData.city}
-                onChange={handleChange}
+                value={profileData.city}
+                onChange={handleInputChange}
                 disabled={!isEditing}
                 required
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 ${
-                  !isEditing ? 'bg-gray-50 text-gray-600' : ''
-                }`}
               />
             </div>
 
-            {/* State */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                State <span className="text-red-500">*</span>
-              </label>
+            <div className="form-field">
+              <label>State <span className="required">*</span></label>
               <input
                 type="text"
                 name="state"
-                value={formData.state}
-                onChange={handleChange}
+                value={profileData.state}
+                onChange={handleInputChange}
                 disabled={!isEditing}
                 required
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 ${
-                  !isEditing ? 'bg-gray-50 text-gray-600' : ''
-                }`}
               />
             </div>
 
-            {/* Pincode */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Pincode <span className="text-red-500">*</span>
-              </label>
+            <div className="form-field">
+              <label>Pincode</label>
               <input
                 type="text"
                 name="pincode"
-                value={formData.pincode}
-                onChange={handleChange}
+                value={profileData.pincode}
+                onChange={handleInputChange}
                 disabled={!isEditing}
-                required
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 ${
-                  !isEditing ? 'bg-gray-50 text-gray-600' : ''
-                }`}
+                maxLength="6"
               />
             </div>
 
-            {/* Address - Full Width */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Full Address <span className="text-red-500">*</span>
-              </label>
+            <div className="form-field full-width">
+              <label>Full Address</label>
               <textarea
                 name="address"
-                value={formData.address}
-                onChange={handleChange}
+                value={profileData.address}
+                onChange={handleInputChange}
                 disabled={!isEditing}
-                required
                 rows="3"
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 ${
-                  !isEditing ? 'bg-gray-50 text-gray-600' : ''
-                }`}
-              ></textarea>
+              />
             </div>
           </div>
-        </form>
+        </div>
 
         {/* Change Password Section */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-xl font-bold text-gray-800 mb-4">Change Password</h3>
-          <button className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-            Change Password
+        <div className="password-section">
+          <h3 className="form-title">Change Password</h3>
+          <button onClick={() => setShowPasswordModal(true)} className="btn-password">
+            <FaLock /> Change Password
+          </button>
+        </div>
+
+        {/* Camera Modal */}
+        {showCamera && (
+          <div className="modal-overlay" onClick={stopCamera}>
+            <div className="modal-content camera-modal" onClick={(e) => e.stopPropagation()}>
+              <h3>Capture Photo</h3>
+              <video ref={videoRef} autoPlay playsInline className="camera-preview" />
+              <canvas ref={canvasRef} style={{ display: 'none' }} />
+              <div className="modal-actions">
+                <button onClick={stopCamera} className="btn-secondary">Cancel</button>
+                <button onClick={capturePhoto} className="btn-primary">Capture</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Password Modal */}
+        {showPasswordModal && (
+          <div className="modal-overlay" onClick={() => setShowPasswordModal(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <h3>Change Password</h3>
+              <div className="password-form">
+                <div className="form-field">
+                  <label>Current Password</label>
+                  <div className="password-input">
+                    <input
+                      type={showPasswords.old ? 'text' : 'password'}
+                      value={passwordData.old_password}
+                      onChange={(e) => setPasswordData(prev => ({ ...prev, old_password: e.target.value }))}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswords(prev => ({ ...prev, old: !prev.old }))}
+                      className="toggle-password"
+                    >
+                      {showPasswords.old ? <FaEyeSlash /> : <FaEye />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="form-field">
+                  <label>New Password</label>
+                  <div className="password-input">
+                    <input
+                      type={showPasswords.new ? 'text' : 'password'}
+                      value={passwordData.new_password}
+                      onChange={(e) => setPasswordData(prev => ({ ...prev, new_password: e.target.value }))}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
+                      className="toggle-password"
+                    >
+                      {showPasswords.new ? <FaEyeSlash /> : <FaEye />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="form-field">
+                  <label>Confirm New Password</label>
+                  <div className="password-input">
+                    <input
+                      type={showPasswords.confirm ? 'text' : 'password'}
+                      value={passwordData.confirm_password}
+                      onChange={(e) => setPasswordData(prev => ({ ...prev, confirm_password: e.target.value }))}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
+                      className="toggle-password"
+                    >
+                      {showPasswords.confirm ? <FaEyeSlash /> : <FaEye />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button onClick={() => setShowPasswordModal(false)} className="btn-secondary">
+                  Cancel
+                </button>
+                <button onClick={handleChangePassword} className="btn-primary" disabled={saving}>
+                  {saving ? 'Changing...' : 'Change Password'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Confirmation Modal */}
+        {showConfirmModal && (
+          <ConfirmationModal
+            type={confirmationType}
+            data={confirmationData}
+            onConfirm={handleConfirm}
+            onCancel={() => setShowConfirmModal(false)}
+          />
+        )}
+      </div>
+    </UserPanelLayout>
+  );
+};
+
+// Confirmation Modal Component
+const ConfirmationModal = ({ type, data, onConfirm, onCancel }) => {
+  const getModalContent = () => {
+    switch (type) {
+      case 'photo-upload':
+        return {
+          title: 'Upload This Photo?',
+          content: (
+            <>
+              <img src={data.photo} alt="Upload preview" className="confirm-photo" />
+              <p className="confirm-text">File: {data.fileName}</p>
+              <p className="confirm-text">Size: {data.fileSize} MB</p>
+            </>
+          ),
+          confirmText: 'Upload',
+          confirmClass: 'btn-primary'
+        };
+      
+      case 'photo-capture':
+        return {
+          title: 'Use This Photo?',
+          content: <img src={data.photo} alt="Captured" className="confirm-photo" />,
+          confirmText: 'Use This',
+          confirmClass: 'btn-primary'
+        };
+      
+      case 'photo-remove':
+        return {
+          title: 'Remove Photo?',
+          content: <p className="confirm-text">Are you sure you want to remove your profile photo? You can upload a new one anytime.</p>,
+          confirmText: 'Remove',
+          confirmClass: 'btn-danger'
+        };
+      
+      case 'profile-update':
+        return {
+          title: 'Confirm Profile Update',
+          content: (
+            <>
+              <p className="confirm-text">Review your changes:</p>
+              <ul className="confirm-list">
+                {data.changes.map((change, idx) => (
+                  <li key={idx}>{change}</li>
+                ))}
+              </ul>
+            </>
+          ),
+          confirmText: 'Update',
+          confirmClass: 'btn-primary'
+        };
+      
+      case 'password-change':
+        return {
+          title: 'Confirm Password Change',
+          content: <p className="confirm-text">Are you sure you want to change your password? This will log you out from all devices.</p>,
+          confirmText: 'Confirm',
+          confirmClass: 'btn-primary'
+        };
+      
+      case 'discard-changes':
+        return {
+          title: 'Discard Changes?',
+          content: (
+            <>
+              <p className="confirm-text">You have unsaved changes. Are you sure you want to leave without saving?</p>
+              <ul className="confirm-list">
+                {data.changes.map((change, idx) => (
+                  <li key={idx}>{change} (edited)</li>
+                ))}
+              </ul>
+            </>
+          ),
+          confirmText: 'Discard',
+          confirmClass: 'btn-danger'
+        };
+      
+      case 'error':
+        return {
+          title: data.title,
+          content: <p className="confirm-text">{data.message}</p>,
+          confirmText: 'Understood',
+          confirmClass: 'btn-primary',
+          hideCancel: true
+        };
+      
+      default:
+        return null;
+    }
+  };
+
+  const content = getModalContent();
+  if (!content) return null;
+
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal-content confirm-modal" onClick={(e) => e.stopPropagation()}>
+        <h3>{content.title}</h3>
+        <div className="confirm-content">{content.content}</div>
+        <div className="modal-actions">
+          {!content.hideCancel && (
+            <button onClick={onCancel} className="btn-secondary">Cancel</button>
+          )}
+          <button onClick={onConfirm} className={content.confirmClass}>
+            {content.confirmText}
           </button>
         </div>
       </div>
-    </UserPanelLayout>
+    </div>
   );
 };
 

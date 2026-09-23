@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAdmin } from '../../context/AdminContext';
 import AdminLayout from '../../components/admin/AdminLayout';
 import Pagination from '../../components/admin/Pagination';
@@ -7,6 +8,7 @@ import { Search, Eye, Edit, Trash2 } from 'lucide-react';
 const ITEMS_PER_PAGE = 10;
 
 export default function UsersPage() {
+  const navigate = useNavigate();
   const { users, updateUserStatus } = useAdmin();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
@@ -18,9 +20,10 @@ export default function UsersPage() {
     const query = searchQuery.toLowerCase();
     return users.filter(
       (user) =>
-        user.name.toLowerCase().includes(query) ||
-        user.email.toLowerCase().includes(query) ||
-        user.phone.includes(query)
+        (user.name || '').toLowerCase().includes(query) ||
+        (user.email || '').toLowerCase().includes(query) ||
+        (user.mobile || user.phone || '').includes(query) ||
+        (user.username || '').toLowerCase().includes(query)
     );
   }, [users, searchQuery]);
 
@@ -82,13 +85,16 @@ export default function UsersPage() {
                     User ID
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Username
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Name
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Email
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Phone
+                    Mobile
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
@@ -104,9 +110,16 @@ export default function UsersPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {currentUsers.length > 0 ? (
                   currentUsers.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                    <tr 
+                      key={user.id} 
+                      onClick={() => navigate(`/admin/user-details/${user.username}`)}
+                      className="hover:bg-blue-50 transition-colors cursor-pointer"
+                    >
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         #{user.id}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {user.username}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {user.name}
@@ -115,11 +128,14 @@ export default function UsersPage() {
                         {user.email}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {user.phone}
+                        {user.mobile || user.phone}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <button
-                          onClick={() => handleStatusToggle(user.id, user.status)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStatusToggle(user.id, user.status);
+                          }}
                           className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                             user.status === 'Active'
                               ? 'bg-green-100 text-green-800 hover:bg-green-200'
@@ -130,33 +146,25 @@ export default function UsersPage() {
                         </button>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {new Date(user.registeredDate).toLocaleDateString()}
+                        {new Date(user.registration_date || user.registeredDate || user.created_at).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                         <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/admin/user-details/${user.username}`);
+                          }}
                           className="text-blue-600 hover:text-blue-900 inline-flex items-center"
-                          title="View"
+                          title="View Details"
                         >
                           <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          className="text-green-600 hover:text-green-900 inline-flex items-center"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          className="text-red-600 hover:text-red-900 inline-flex items-center"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
                         </button>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan="8" className="px-6 py-12 text-center text-gray-500">
                       No users found
                     </td>
                   </tr>

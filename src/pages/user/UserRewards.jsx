@@ -5,15 +5,15 @@ import UserPagination from '../../components/user/UserPagination';
 import { FaSearch, FaGift } from 'react-icons/fa';
 
 const UserRewards = () => {
-  const { rewards = [] } = useUserPanel() || {};
+  const { rewards = [], loading } = useUserPanel() || {};
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
 
   const filteredRewards = rewards.filter(
     (reward) =>
-      (reward.rewardName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (reward.achievement || '').toLowerCase().includes(searchTerm.toLowerCase())
+      (reward.reward_type || reward.rewardName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (reward.description || reward.achievement || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const totalPages = Math.ceil(filteredRewards.length / rowsPerPage);
@@ -21,7 +21,19 @@ const UserRewards = () => {
   const currentRewards = filteredRewards.slice(startIndex, startIndex + rowsPerPage);
 
   const totalRewards = rewards.reduce((sum, r) => sum + (r.amount || 0), 0);
-  const rewardTypes = [...new Set(rewards.map(r => r.rewardName))];
+  const rewardTypes = [...new Set(rewards.map(r => r.reward_type || r.rewardName))];
+
+  if (loading) {
+    return (
+      <UserPanelLayout>
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h1 className="text-2xl font-bold text-gray-800">Loading rewards...</h1>
+          </div>
+        </div>
+      </UserPanelLayout>
+    );
+  }
 
   return (
     <UserPanelLayout>
@@ -60,7 +72,7 @@ const UserRewards = () => {
           <h2 className="text-lg font-bold text-gray-800 mb-4">Reward Breakdown</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {rewardTypes.map((type) => {
-              const typeRewards = rewards.filter(r => r.rewardName === type);
+              const typeRewards = rewards.filter(r => (r.reward_type || r.rewardName) === type);
               const typeTotal = typeRewards.reduce((sum, r) => sum + (r.amount || 0), 0);
               return (
                 <div key={type} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
@@ -125,26 +137,26 @@ const UserRewards = () => {
                   currentRewards.map((reward) => (
                     <tr key={reward.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {reward.rewardId}
+                        {reward.reward_id || reward.rewardId}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
-                          {reward.rewardName}
+                          {reward.reward_type || reward.rewardName}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
-                        {reward.achievement}
+                        {reward.description || reward.achievement}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600">
                         ₹{(reward.amount || 0).toLocaleString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {new Date(reward.date).toLocaleDateString()}
+                        {new Date(reward.reward_date || reward.date || reward.created_at).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
                           className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            reward.status === 'Received'
+                            reward.status === 'Received' || reward.status === 'Completed'
                               ? 'bg-green-100 text-green-800'
                               : reward.status === 'Pending'
                               ? 'bg-yellow-100 text-yellow-800'

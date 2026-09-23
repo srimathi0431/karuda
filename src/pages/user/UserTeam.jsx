@@ -5,7 +5,7 @@ import UserPagination from '../../components/user/UserPagination';
 import { FaSearch } from 'react-icons/fa';
 
 const UserTeam = () => {
-  const { team = [] } = useUserPanel() || {};
+  const { team = [], loading } = useUserPanel() || {};
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
@@ -24,6 +24,18 @@ const UserTeam = () => {
     acc[member.level] = (acc[member.level] || 0) + 1;
     return acc;
   }, {});
+
+  if (loading) {
+    return (
+      <UserPanelLayout>
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h1 className="text-2xl font-bold text-gray-800">Loading team data...</h1>
+          </div>
+        </div>
+      </UserPanelLayout>
+    );
+  }
 
   return (
     <UserPanelLayout>
@@ -115,10 +127,10 @@ const UserTeam = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {new Date(member.joiningDate).toLocaleDateString()}
+                        {new Date(member.joining_date || member.created_at).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
-                        ₹{member.totalSales.toLocaleString()}
+                        ₹{(member.total_sales || member.totalSales || 0).toLocaleString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span

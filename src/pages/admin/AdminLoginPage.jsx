@@ -23,15 +23,19 @@ export default function AdminLoginPage() {
     setLoading(true);
     setError('');
 
-    const result = adminLogin(formData.email, formData.password);
-    
-    if (result.success) {
-      navigate('/admin/dashboard');
-    } else {
-      setError(result.message || 'Invalid email or password');
+    try {
+      const result = await adminLogin(formData.email, formData.password);
+      
+      if (result.success) {
+        navigate('/admin/dashboard');
+      } else {
+        setError(result.message || 'Invalid email or password');
+      }
+    } catch (err) {
+      setError('Login failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (
@@ -111,7 +115,7 @@ export default function AdminLoginPage() {
           {/* Demo Credentials */}
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <p className="text-xs text-gray-600 text-center">
-              Demo: karuda@gmail.com / 12345678
+              Admin: admin@karuda.shop / karuda
             </p>
           </div>
         </div>

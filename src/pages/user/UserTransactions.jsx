@@ -5,15 +5,15 @@ import UserPagination from '../../components/user/UserPagination';
 import { FaSearch, FaDownload } from 'react-icons/fa';
 
 const UserTransactions = () => {
-  const { transactions = [] } = useUserPanel() || {};
+  const { transactions = [], loading } = useUserPanel() || {};
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
 
   const filteredTransactions = transactions.filter(
     (transaction) =>
-      (transaction.transactionId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (transaction.type || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (transaction.transaction_id || transaction.transactionId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (transaction.transaction_type || transaction.type || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (transaction.description || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -22,14 +22,26 @@ const UserTransactions = () => {
   const currentTransactions = filteredTransactions.slice(startIndex, startIndex + rowsPerPage);
 
   const totalCredit = transactions
-    .filter(t => t.type === 'Credit')
+    .filter(t => (t.transaction_type || t.type) === 'Credit')
     .reduce((sum, t) => sum + (t.amount || 0), 0);
 
   const totalDebit = transactions
-    .filter(t => t.type === 'Debit')
+    .filter(t => (t.transaction_type || t.type) === 'Debit')
     .reduce((sum, t) => sum + (t.amount || 0), 0);
 
   const balance = totalCredit - totalDebit;
+
+  if (loading) {
+    return (
+      <UserPanelLayout>
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h1 className="text-2xl font-bold text-gray-800">Loading transactions...</h1>
+          </div>
+        </div>
+      </UserPanelLayout>
+    );
+  }
 
   return (
     <UserPanelLayout>
@@ -119,17 +131,17 @@ const UserTransactions = () => {
                   currentTransactions.map((transaction) => (
                     <tr key={transaction.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {transaction.transactionId}
+                        {transaction.transaction_id || transaction.transactionId}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
                           className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            transaction.type === 'Credit'
+                            (transaction.transaction_type || transaction.type) === 'Credit'
                               ? 'bg-green-100 text-green-800'
                               : 'bg-red-100 text-red-800'
                           }`}
                         >
-                          {transaction.type}
+                          {transaction.transaction_type || transaction.type}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
@@ -138,15 +150,15 @@ const UserTransactions = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">
                         <span
                           className={
-                            transaction.type === 'Credit' ? 'text-green-600' : 'text-red-600'
+                            (transaction.transaction_type || transaction.type) === 'Credit' ? 'text-green-600' : 'text-red-600'
                           }
                         >
-                          {transaction.type === 'Credit' ? '+' : '-'}₹
+                          {(transaction.transaction_type || transaction.type) === 'Credit' ? '+' : '-'}₹
                           {transaction.amount.toLocaleString()}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {new Date(transaction.date).toLocaleDateString()}
+                        {new Date(transaction.transaction_date || transaction.date || transaction.created_at).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span

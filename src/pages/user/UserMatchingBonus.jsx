@@ -5,14 +5,14 @@ import UserPagination from '../../components/user/UserPagination';
 import { FaSearch } from 'react-icons/fa';
 
 const UserMatchingBonus = () => {
-  const { matchingBonus = [] } = useUserPanel() || {};
+  const { matchingBonus = [], loading } = useUserPanel() || {};
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
 
   const filteredBonus = matchingBonus.filter(
     (bonus) =>
-      (bonus.transactionId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (bonus.transaction_id || bonus.transactionId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (bonus.status || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -22,11 +22,23 @@ const UserMatchingBonus = () => {
 
   const totalEarned = matchingBonus
     .filter(b => b.status === 'Credited')
-    .reduce((sum, b) => sum + (b.bonusAmount || 0), 0);
+    .reduce((sum, b) => sum + (b.bonus_amount || b.bonusAmount || 0), 0);
 
   const totalPending = matchingBonus
     .filter(b => b.status === 'Pending')
-    .reduce((sum, b) => sum + (b.bonusAmount || 0), 0);
+    .reduce((sum, b) => sum + (b.bonus_amount || b.bonusAmount || 0), 0);
+
+  if (loading) {
+    return (
+      <UserPanelLayout>
+        <div>
+          <div className="card">
+            <h1 className="page-title">Loading matching bonus...</h1>
+          </div>
+        </div>
+      </UserPanelLayout>
+    );
+  }
 
   return (
     <UserPanelLayout>
@@ -92,13 +104,13 @@ const UserMatchingBonus = () => {
               {currentBonus.length > 0 ? (
                 currentBonus.map((bonus) => (
                   <tr key={bonus.id}>
-                    <td>{bonus.transactionId}</td>
-                    <td>{new Date(bonus.date).toLocaleDateString()}</td>
-                    <td>{bonus.leftPoints}</td>
-                    <td>{bonus.rightPoints}</td>
-                    <td>{bonus.matchingPairs}</td>
+                    <td>{bonus.transaction_id || bonus.transactionId}</td>
+                    <td>{new Date(bonus.bonus_date || bonus.date || bonus.created_at).toLocaleDateString()}</td>
+                    <td>{bonus.left_points || bonus.leftPoints || 0}</td>
+                    <td>{bonus.right_points || bonus.rightPoints || 0}</td>
+                    <td>{bonus.matching_pairs || bonus.matchingPairs || 0}</td>
                     <td style={{ color: '#22c55e', fontWeight: 700 }}>
-                      ₹{(bonus.bonusAmount || 0).toLocaleString()}
+                      ₹{(bonus.bonus_amount || bonus.bonusAmount || 0).toLocaleString()}
                     </td>
                     <td>
                       <span

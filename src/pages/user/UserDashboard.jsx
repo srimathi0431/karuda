@@ -1,50 +1,74 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import UserPanelLayout from '../../components/user/UserPanelLayout';
 import { useUserPanel } from '../../context/UserPanelContext';
+import { useAuth } from '../../context/AuthContext';
+import { userAPI } from '../../services/api';
 import { FaUsers, FaGift, FaDollarSign, FaShoppingCart } from 'react-icons/fa';
+import '../../styles/UserDashboard.css';
 
 const UserDashboard = () => {
-  const { referrals = [], team = [], matchingBonus = [], rewards = [], transactions = [], p2pRecords = [] } = useUserPanel() || {};
+  const { referrals = [], team = [], matchingBonus = [], rewards = [], transactions = [], p2pRecords = [], loading } = useUserPanel() || {};
+  const { user } = useAuth();
+  const [orders, setOrders] = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(true);
 
-  // Get orders from localStorage since they're not in context
-  const orders = JSON.parse(localStorage.getItem('orders') || '[]');
+  // Fetch user orders
+  useEffect(() => {
+    const fetchOrders = async () => {
+      if (!user?.username) return;
+      
+      try {
+        setLoadingOrders(true);
+        const response = await userAPI.getOrders(user.username);
+        if (response.success) {
+          setOrders(response.orders || []);
+        }
+      } catch (err) {
+        console.error('Error fetching orders:', err);
+      } finally {
+        setLoadingOrders(false);
+      }
+    };
+
+    fetchOrders();
+  }, [user?.username]);
 
   const stats = [
     {
       title: 'Total Referrals',
       value: referrals.length,
-      icon: <FaUsers className="text-pink-500" />,
-      bgColor: 'bg-pink-50',
+      icon: <FaUsers />,
+      iconClass: 'pink',
     },
     {
       title: 'Team Members',
       value: team.length,
-      icon: <FaUsers className="text-blue-500" />,
-      bgColor: 'bg-blue-50',
+      icon: <FaUsers />,
+      iconClass: 'blue',
     },
     {
       title: 'Total Rewards',
       value: `₹${rewards.reduce((sum, r) => sum + r.amount, 0).toLocaleString()}`,
-      icon: <FaGift className="text-green-500" />,
-      bgColor: 'bg-green-50',
+      icon: <FaGift />,
+      iconClass: 'green',
     },
     {
       title: 'Matching Bonus',
       value: `₹${matchingBonus.reduce((sum, b) => sum + b.bonusAmount, 0).toLocaleString()}`,
-      icon: <FaDollarSign className="text-yellow-500" />,
-      bgColor: 'bg-yellow-50',
+      icon: <FaDollarSign />,
+      iconClass: 'yellow',
     },
     {
       title: 'Total Orders',
       value: orders.length,
-      icon: <FaShoppingCart className="text-purple-500" />,
-      bgColor: 'bg-purple-50',
+      icon: <FaShoppingCart />,
+      iconClass: 'purple',
     },
     {
       title: 'Total Transactions',
       value: transactions.length,
-      icon: <FaDollarSign className="text-indigo-500" />,
-      bgColor: 'bg-indigo-50',
+      icon: <FaDollarSign />,
+      iconClass: 'indigo',
     },
   ];
 
@@ -52,37 +76,47 @@ const UserDashboard = () => {
     ...referrals.slice(0, 3).map(r => ({
       type: 'referral',
       message: `${r.name} joined through your referral`,
-      date: r.joiningDate,
+      date: r.joining_date || r.created_at,
     })),
     ...rewards.slice(0, 2).map(r => ({
       type: 'reward',
-      message: `Received ₹${r.amount} ${r.rewardName}`,
-      date: r.date,
+      message: `Received ₹${r.amount} ${r.reward_type || 'reward'}`,
+      date: r.reward_date || r.created_at,
     })),
   ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
 
+  if (loading || loadingOrders) {
+    return (
+      <UserPanelLayout>
+        <div className="user-dashboard">
+          <div className="welcome-section">
+            <h1>Loading...</h1>
+            <p>Please wait while we fetch your data</p>
+          </div>
+        </div>
+      </UserPanelLayout>
+    );
+  }
+
   return (
     <UserPanelLayout>
-      <div className="space-y-6">
+      <div className="user-dashboard">
         {/* Welcome Section */}
-        <div className="bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg p-6 shadow-lg">
-          <h1 className="text-3xl font-bold mb-2">Welcome Back!</h1>
-          <p className="text-pink-100">Here's your dashboard overview</p>
+        <div className="welcome-section">
+          <h1>Welcome Back, {user?.name || user?.username}!</h1>
+          <p>Here's your dashboard overview</p>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="stats-grid">
           {stats.map((stat, index) => (
-            <div
-              key={index}
-              className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm mb-1">{stat.title}</p>
-                  <p className="text-2xl font-bold text-gray-800">{stat.value}</p>
+            <div key={index} className="stat-card">
+              <div className="stat-card-content">
+                <div className="stat-info">
+                  <p>{stat.title}</p>
+                  <h3>{stat.value}</h3>
                 </div>
-                <div className={`${stat.bgColor} p-4 rounded-full text-2xl`}>
+                <div className={`stat-icon ${stat.iconClass}`}>
                   {stat.icon}
                 </div>
               </div>
@@ -91,28 +125,23 @@ const UserDashboard = () => {
         </div>
 
         {/* Recent Activities */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Recent Activities</h2>
-          <div className="space-y-3">
+        <div className="activities-section">
+          <h2>Recent Activities</h2>
+          <div className="activities-list">
             {recentActivities.length > 0 ? (
               recentActivities.map((activity, index) => (
-                <div
-                  key={index}
-                  className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <div className={`mt-1 ${
-                    activity.type === 'referral' ? 'text-blue-500' : 'text-green-500'
-                  }`}>
+                <div key={index} className="activity-item">
+                  <div className={`activity-icon ${activity.type === 'referral' ? 'blue' : 'green'}`}>
                     {activity.type === 'referral' ? <FaUsers /> : <FaGift />}
                   </div>
-                  <div className="flex-1">
-                    <p className="text-gray-800 text-sm">{activity.message}</p>
-                    <p className="text-gray-500 text-xs mt-1">{activity.date}</p>
+                  <div className="activity-details">
+                    <p>{activity.message}</p>
+                    <span>{activity.date}</span>
                   </div>
                 </div>
               ))
             ) : (
-              <p className="text-gray-500 text-center py-4">No recent activities</p>
+              <p className="no-activities">No recent activities</p>
             )}
           </div>
         </div>

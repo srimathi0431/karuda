@@ -18,7 +18,7 @@ export default function OrdersPage() {
 
     // Status filter
     if (statusFilter !== 'All') {
-      filtered = filtered.filter((order) => order.orderStatus === statusFilter);
+      filtered = filtered.filter((order) => (order.order_status || order.orderStatus) === statusFilter);
     }
 
     // Search filter
@@ -26,9 +26,9 @@ export default function OrdersPage() {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (order) =>
-          order.id.toString().includes(query) ||
-          order.customerName.toLowerCase().includes(query) ||
-          order.product.toLowerCase().includes(query)
+          (order.order_id || order.id || '').toString().includes(query) ||
+          (order.user_name || order.customerName || '').toLowerCase().includes(query) ||
+          (order.product_name || order.product || '').toLowerCase().includes(query)
       );
     }
 
@@ -51,14 +51,17 @@ export default function OrdersPage() {
   };
 
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'Processing':
+    const normalizedStatus = (status || '').toLowerCase();
+    switch (normalizedStatus) {
+      case 'processing':
+      case 'pending':
         return 'bg-yellow-100 text-yellow-800';
-      case 'Shipped':
+      case 'shipped':
         return 'bg-blue-100 text-blue-800';
-      case 'Delivered':
+      case 'delivered':
+      case 'completed':
         return 'bg-green-100 text-green-800';
-      case 'Cancelled':
+      case 'cancelled':
         return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
@@ -66,12 +69,14 @@ export default function OrdersPage() {
   };
 
   const getPaymentColor = (status) => {
-    switch (status) {
-      case 'Paid':
+    const normalizedStatus = (status || '').toLowerCase();
+    switch (normalizedStatus) {
+      case 'paid':
+      case 'completed':
         return 'bg-green-100 text-green-800';
-      case 'Pending':
+      case 'pending':
         return 'bg-yellow-100 text-yellow-800';
-      case 'Failed':
+      case 'failed':
         return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
@@ -172,39 +177,39 @@ export default function OrdersPage() {
                   currentOrders.map((order) => (
                     <tr key={order.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        #{order.id}
+                        #{order.order_id || order.id}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{order.customerName}</div>
-                        <div className="text-xs text-gray-500">{order.customerEmail}</div>
+                        <div className="text-sm text-gray-900">{order.user_name || order.customerName}</div>
+                        <div className="text-xs text-gray-500">{order.user_email || order.customerEmail}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {order.product}
+                        {order.product_name || order.product}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                         {order.quantity}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                        ₹{order.amount.toLocaleString()}
+                        ₹{(order.amount || 0).toLocaleString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {new Date(order.orderDate).toLocaleDateString()}
+                        {new Date(order.order_date || order.orderDate || order.created_at).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
                           className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getPaymentColor(
-                            order.paymentStatus
+                            order.payment_status || order.paymentStatus
                           )}`}
                         >
-                          {order.paymentStatus}
+                          {order.payment_status || order.paymentStatus}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <select
-                          value={order.orderStatus}
+                          value={order.order_status || order.orderStatus}
                           onChange={(e) => handleStatusChange(order.id, e.target.value)}
                           className={`px-2 py-1 text-xs leading-5 font-semibold rounded-full border-0 cursor-pointer ${getStatusColor(
-                            order.orderStatus
+                            order.order_status || order.orderStatus
                           )}`}
                         >
                           <option value="Processing">Processing</option>

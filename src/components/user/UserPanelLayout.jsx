@@ -6,7 +6,8 @@ import {
   FaUserFriends, 
   FaDollarSign, 
   FaGift, 
-  FaShoppingBag, 
+  FaBox, 
+  FaMoneyBillWave,
   FaShoppingCart, 
   FaExchangeAlt, 
   FaHistory, 
@@ -23,14 +24,26 @@ const UserPanelLayout = ({ children }) => {
 
   const menuItems = [
     { path: '/account', label: 'Dashboard', icon: <FaTachometerAlt /> },
-    { path: '/account/referrals', label: 'My Referral', icon: <FaUsers /> },
+    
+    // Network Section
+    { path: '/account/wallets', label: 'My Wallets', icon: <FaMoneyBillWave /> },
+    { path: '/account/referrals', label: 'My Referrals', icon: <FaUsers /> },
     { path: '/account/team', label: 'My Team', icon: <FaUserFriends /> },
-    { path: '/account/matching-bonus', label: 'Matching Bonus', icon: <FaDollarSign /> },
-    { path: '/account/rewards', label: 'Reward & Records', icon: <FaGift /> },
-    { path: '/account/products', label: 'Products', icon: <FaShoppingBag /> },
-    { path: '/account/orders', label: 'Order', icon: <FaShoppingCart /> },
-    { path: '/account/transactions', label: 'Transaction History', icon: <FaHistory /> },
-    { path: '/account/p2p', label: 'P2P', icon: <FaExchangeAlt /> },
+    { path: '/account/binary-tree', label: 'Binary Tree', icon: <FaUserFriends /> },
+    { path: '/account/income-report', label: 'Income Report', icon: <FaDollarSign /> },
+    { path: '/account/matching-tracker', label: 'Matching Bonus', icon: <FaDollarSign /> },
+    { path: '/account/awards', label: 'Awards & Achievements', icon: <FaGift /> },
+    { path: '/account/withdraw', label: 'Withdraw', icon: <FaMoneyBillWave /> },
+    
+    // Shopping Section
+    { path: '/account/package', label: 'My Package', icon: <FaBox /> },
+    { path: '/account/deposit', label: 'Deposit', icon: <FaMoneyBillWave /> },
+    { path: '/account/products', label: 'Products', icon: <FaShoppingCart /> },
+    { path: '/account/orders', label: 'Orders', icon: <FaHistory /> },
+    
+    // Other
+    { path: '/account/transactions', label: 'Transactions', icon: <FaExchangeAlt /> },
+    { path: '/account/p2p', label: 'P2P Transfer', icon: <FaDollarSign /> },
     { path: '/account/profile', label: 'Profile', icon: <FaUser /> },
   ];
 

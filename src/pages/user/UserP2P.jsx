@@ -5,7 +5,7 @@ import UserPagination from '../../components/user/UserPagination';
 import { FaSearch, FaExchangeAlt, FaPlus } from 'react-icons/fa';
 
 const UserP2P = () => {
-  const { p2pRecords = [] } = useUserPanel() || {};
+  const { p2pRecords = [], loading } = useUserPanel() || {};
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [showNewTransfer, setShowNewTransfer] = useState(false);
@@ -13,8 +13,8 @@ const UserP2P = () => {
 
   const filteredP2P = p2pRecords.filter(
     (transaction) =>
-      (transaction.p2pId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (transaction.counterparty || '').toLowerCase().includes(searchTerm.toLowerCase())
+      (transaction.transfer_id || transaction.p2pId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (transaction.sender_username || transaction.recipient_username || transaction.counterparty || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const totalPages = Math.ceil(filteredP2P.length / rowsPerPage);
@@ -22,12 +22,24 @@ const UserP2P = () => {
   const currentP2P = filteredP2P.slice(startIndex, startIndex + rowsPerPage);
 
   const totalSent = p2pRecords
-    .filter(t => t.type === 'Sent')
+    .filter(t => (t.transfer_type || t.type) === 'Sent' || t.sender_username)
     .reduce((sum, t) => sum + (t.amount || 0), 0);
 
   const totalReceived = p2pRecords
-    .filter(t => t.type === 'Received')
+    .filter(t => (t.transfer_type || t.type) === 'Received' || t.recipient_username)
     .reduce((sum, t) => sum + (t.amount || 0), 0);
+
+  if (loading) {
+    return (
+      <UserPanelLayout>
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h1 className="text-2xl font-bold text-gray-800">Loading P2P transfers...</h1>
+          </div>
+        </div>
+      </UserPanelLayout>
+    );
+  }
 
   return (
     <UserPanelLayout>
@@ -116,34 +128,34 @@ const UserP2P = () => {
                   currentP2P.map((transaction) => (
                     <tr key={transaction.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {transaction.p2pId}
+                        {transaction.transfer_id || transaction.p2pId}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
                           className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            transaction.type === 'Received'
+                            (transaction.transfer_type || transaction.type) === 'Received'
                               ? 'bg-green-100 text-green-800'
                               : 'bg-blue-100 text-blue-800'
                           }`}
                         >
-                          {transaction.type}
+                          {transaction.transfer_type || transaction.type}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {transaction.counterparty}
+                        {transaction.sender_username || transaction.recipient_username || transaction.counterparty}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">
                         <span
                           className={
-                            transaction.type === 'Received' ? 'text-green-600' : 'text-blue-600'
+                            (transaction.transfer_type || transaction.type) === 'Received' ? 'text-green-600' : 'text-blue-600'
                           }
                         >
-                          {transaction.type === 'Received' ? '+' : ''}₹
+                          {(transaction.transfer_type || transaction.type) === 'Received' ? '+' : ''}₹
                           {(transaction.amount || 0).toLocaleString()}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {new Date(transaction.date).toLocaleDateString()}
+                        {new Date(transaction.transfer_date || transaction.date || transaction.created_at).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
